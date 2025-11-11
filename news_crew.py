@@ -2,6 +2,7 @@ import os
 from crewai import Crew, Agent, Task
 from crewai.project import CrewBase, task, agent, crew
 from env import ANTHROPIC_API_KEY
+from tools import global_news_rss_tool, korean_news_rss_tool, web_search_tool
 
 os.environ["ANTHROPIC_API_KEY"] = ANTHROPIC_API_KEY
 
@@ -25,7 +26,7 @@ class NewsCrew:
             """,
             llm="anthropic/claude-sonnet-4-20250514",
             verbose=True,
-            tools=[],
+            tools=[global_news_rss_tool, korean_news_rss_tool],
         )
 
     @task
@@ -40,13 +41,15 @@ class NewsCrew:
             1. **첫 번째로 global_news_rss_tool()을 호출**하여 실제 RSS 데이터를 가져와야 합니다.
             2. **도구 호출 결과를 기다리고 받은 실제 데이터만 사용**해야 합니다.
             3. **절대로 임의의 뉴스나 예시 데이터를 생성하지 마세요.**
-            4. RSS 도구에서 받은 데이터를 중요도와 관련성에 따라 정렬하세요 (최신순 우선).
-            5. 중복된 기사를 제거하세요.
-            6. 상위 {FETCH_NEWS_COUNT}개의 가장 핫한 이슈 기사를 선별하세요.
+            4. **중요: 도구에서 받은 데이터는 이미 오늘 날짜(한국시간 기준)로 필터링되어 있습니다. 
+               오늘 날짜가 아닌 기사는 이미 제외되었으므로, 받은 데이터를 그대로 사용하세요.**
+            5. RSS 도구에서 받은 데이터를 중요도와 관련성에 따라 정렬하세요 (최신순 우선).
+            6. 중복된 기사를 제거하세요.
+            7. 상위 {FETCH_NEWS_COUNT}개의 가장 핫한 이슈 기사를 선별하세요.
 
             **경고: 이 작업은 실제 뉴스 수집이므로 반드시 global_news_rss_tool을 호출해야 하며,
             그 이전 날짜의 가짜 뉴스를 만들어내는 것은 절대 금지됩니다.
-            RSS 도구는 현재의 실제 뉴스를 제공합니다.**
+            RSS 도구는 오늘 날짜(한국시간 기준)의 실제 뉴스만 제공합니다.**
             """,
             expected_output="""
             다음 형식의 JSON 리스트:
@@ -77,13 +80,15 @@ class NewsCrew:
             1. **첫 번째로 korean_news_rss_tool()을 호출**하여 실제 RSS 데이터를 가져와야 합니다.
             2. **도구 호출 결과를 기다리고 받은 실제 데이터만 사용**해야 합니다.
             3. **절대로 임의의 뉴스나 예시 데이터를 생성하지 마세요.**
-            4. RSS 도구에서 받은 데이터를 중요도와 시의성에 따라 분석하세요.
-            5. 중복 기사 및 유사 기사를 제거하세요.
-            6. 상위 {FETCH_NEWS_COUNT}개의 가장 핫한 한국 뉴스를 선별하세요.
+            4. **중요: 도구에서 받은 데이터는 이미 오늘 날짜(한국시간 기준)로 필터링되어 있습니다. 
+               오늘 날짜가 아닌 기사는 이미 제외되었으므로, 받은 데이터를 그대로 사용하세요.**
+            5. RSS 도구에서 받은 데이터를 중요도와 시의성에 따라 분석하세요.
+            6. 중복 기사 및 유사 기사를 제거하세요.
+            7. 상위 {FETCH_NEWS_COUNT}개의 가장 핫한 한국 뉴스를 선별하세요.
 
             **경고: 이 작업은 실제 뉴스 수집이므로 반드시 korean_news_rss_tool을 호출해야 하며,
             그 이전 날짜의 가짜 뉴스를 만들어내는 것은 절대 금지됩니다.
-            RSS 도구는 현재의 실제 뉴스를 제공합니다.**
+            RSS 도구는 오늘 날짜(한국시간 기준)의 실제 뉴스만 제공합니다.**
             """,
             expected_output="""
             다음 형식의 JSON 리스트:
@@ -118,7 +123,7 @@ class NewsCrew:
             """,
             llm="anthropic/claude-sonnet-4-20250514",
             verbose=True,
-            tools=[],
+            tools=[web_search_tool],
         )
 
     @task
@@ -135,7 +140,9 @@ class NewsCrew:
                - 각 기사의 link 필드에 있는 URL에 접근하여 실제 기사 본문을 추출합니다.
 
             2. **기사 본문 추출**:
-               - 각 뉴스 링크에 접속하여 기사의 실제 본문 내용을 추출합니다.
+               - **반드시 web_search_tool을 사용하여** 각 뉴스 링크의 실제 본문 내용을 추출합니다.
+               - web_search_tool은 URL을 입력받아 기사의 제목과 본문을 반환합니다.
+               - Google News 리다이렉트 URL은 작동하지 않을 수 있으므로, RSS 피드에서 제공된 실제 기사 URL을 사용하세요.
                - 광고, 관련 기사, 댓글 등 불필요한 내용은 제외하고 핵심 기사 내용만 추출합니다.
                - 제목, 날짜, 본문, 출처를 명확히 구분하여 추출합니다.
 
